@@ -155,6 +155,8 @@ def download(folder, product_name, latlim, lonlim, timelim, variables, post_proc
     else:
         log.info(f"--> Using the new CDS beta.")
         url, key = pywapor.collect.accounts.get("CDS")
+        if url == "https://cds-beta.climate.copernicus.eu/api":
+            url = "https://cds.climate.copernicus.eu/api"
 
     _ = log.info("--> Directing CDS logging to file `CDS_log.txt`.")
 
