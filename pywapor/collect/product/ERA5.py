@@ -33,7 +33,7 @@ def default_vars(product_name, req_vars):
                     "2m_relative_humidity": [{"time": [f"{x:02d}_00" for x in [6,9,12,15,18]], "format": "zip", "version": "1_1"}, "rh"],
                     "10m_wind_speed": [{"statistic": "24_hour_mean", "format": "zip", "version": "1_1"}, "u"],
                     "vapour_pressure": [{"statistic": "24_hour_mean", "format": "zip", "version": "1_1"}, "vp"],
-                    "solar_radiation_flux": [{"statistic": "24_hour_mean", "format": "zip", "version": "1_1"}, "ra_flat"],
+                    "solar_radiation_flux": [{"format": "zip", "version": "1_1"}, "ra_flat"],
                         },
 
         "reanalysis-era5-single-levels": {
