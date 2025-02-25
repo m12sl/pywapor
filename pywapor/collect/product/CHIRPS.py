@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from osgeo import gdal
 import pywapor.collect.protocol.cog as cog
+from pywapor.general.logger import log
 from pywapor.collect.protocol.projections import get_crss
 from pywapor.enhancers.apply_enhancers import apply_enhancers
 from pywapor.general.processing_functions import open_ds, process_ds, save_ds, remove_ds
@@ -187,8 +188,14 @@ def download(folder, latlim, lonlim, timelim, product_name = "P05", req_vars = [
     
     ds_ = open_ds(x)
     ds = ds_.to_array("time").to_dataset(name = "precip")
+
     if ds.time.size != len(urls):
-        _ = cog.ping_urls(urls)
+        invalid_urls = cog.ping_urls(urls)
+        idxs = [urls.index(invalid_url) for invalid_url in invalid_urls]
+        new_dates = [x for i, x in enumerate(dates) if i not in idxs]
+        log.warning(f"The following dates could not be collected: {set(new_dates).symmetric_difference(set(dates))}")
+        dates = new_dates
+        
     ds = ds.assign_coords({"time": [np.datetime64(x + timedelta, "ns") for x in dates]})
     ds = process_ds(ds, coords, variables, crs = data_source_crs)
 
@@ -208,7 +215,7 @@ if __name__ == "__main__":
     # # latlim = [26.9, 33.7]
     # # lonlim = [25.2, 37.2]
     bb = [-5.1451, 5.5001, -5.0620, 6.0561] # [xmin, ymin, xmax, ymax] #Wad_Helal
-    timelim = [np.datetime64("2024-06-01"), np.datetime64("2024-12-31")] 
+    timelim = [np.datetime64("2024-07-15"), np.datetime64("2024-09-15")] 
     latlim = bb[1::2]
     lonlim = bb[0::2]
 
