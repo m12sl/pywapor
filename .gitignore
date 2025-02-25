@@ -19,6 +19,9 @@
 # Package files
 *.jar
 
+.coverage*
+
+archive/
 # JetBrains IDE
 .idea/
 
