@@ -187,6 +187,8 @@ def download(folder, latlim, lonlim, timelim, product_name = "P05", req_vars = [
     
     ds_ = open_ds(x)
     ds = ds_.to_array("time").to_dataset(name = "precip")
+    if ds.time.size != len(urls):
+        _ = cog.ping_urls(urls)
     ds = ds.assign_coords({"time": [np.datetime64(x + timedelta, "ns") for x in dates]})
     ds = process_ds(ds, coords, variables, crs = data_source_crs)
 
@@ -205,12 +207,15 @@ if __name__ == "__main__":
     folder = r"/Users/hmcoerver/Local/pywapor_test_chirps"
     # # latlim = [26.9, 33.7]
     # # lonlim = [25.2, 37.2]
-    bb = [2.1737, 36.2283, 2.1916, 36.2390] # [xmin, ymin, xmax, ymax] #Wad_Helal
-    timelim = [np.datetime64("2022-02-26"), np.datetime64("2022-02-26")] 
+    bb = [-5.1451, 5.5001, -5.0620, 6.0561] # [xmin, ymin, xmax, ymax] #Wad_Helal
+    timelim = [np.datetime64("2024-06-01"), np.datetime64("2024-12-31")] 
     latlim = bb[1::2]
     lonlim = bb[0::2]
 
     product_name = "P05"
     req_vars = ["p"]
+
+    variables = None
+    post_processors = None
     # CHIRPS.
-    ds = download(folder, latlim, lonlim, timelim)
+    # ds = download(folder, latlim, lonlim, timelim)
