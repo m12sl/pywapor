@@ -9,6 +9,7 @@ from pywapor.general.logger import adjust_logger, log
 import importlib
 
 
+
 def has_geotransform(ds):
     varis = ds.data_vars
     for var in varis:
@@ -236,6 +237,18 @@ SOURCES = {
         "swir2",
     ],
     "LANDSAT.LC09_ST": ["lst", "lst_qa"],
+    'LSASAF.MSG_MDSSFTD': ['diffuse_fraction', 'qa', 'ra_flat'],
+    'LSASAF.MSG_MDIDSSF': ['max_nslots_missing',
+    'missing_values_percent',
+    'ra_flat',
+    'weight_missing_values_percent'],
+
+    'LSASAF.MSG_MLST': ['error', 'lst', 'qa'],
+    'LSASAF.MSG_MLST-AS': ['lst', 'qa'],
+    'LSASAF.MSG_MLST-ASv2': ['lst', 'qa'],
+    'LSASAF.MSG_METREF': ['et_ref_24_mm', 'qa'],
+    'LSASAF.MSG_MH': ['h_i', 'qa'],
+    'LSASAF.MSG_MLE': ['lh_i', 'qa']
 }
 
 TIMELIM = {
@@ -256,7 +269,28 @@ TIMELIM = {
     "ERA5": ["2022-03-01", "2022-03-03"],
     "SENTINEL2": ["2023-03-01", "2023-03-03"],
     "SENTINEL3": ["2023-03-01", "2023-03-03"],
-    "LANDSAT": ["2022-03-01", "2022-03-12"],
+
+    'LSASAF.MSG_MDIDSSF': ["2023-03-01", "2023-03-03"],
+    'LSASAF.MSG_MDSSFTD': ["2023-03-01", "2023-03-03"],
+
+    'LSASAF.MSG_MLST': ["2023-03-01", "2023-03-03"],
+    'LSASAF.MSG_METREF': ["2023-03-01", "2023-03-03"],
+    'LSASAF.MSG_MH': ["2023-03-01", "2023-03-03"],
+    'LSASAF.MSG_MLE': ["2023-03-01", "2023-03-03"],
+
+    'LSASAF.MSG_MLST-AS': ["2023-02-05", "2023-02-06"],
+    'LSASAF.MSG_MLST-ASv2': ["2023-02-05", "2023-02-06"],
+
+    "LANDSAT.LT05_SR": ["2005-03-01", "2005-03-12"],
+    "LANDSAT.LT05_ST": ["2005-03-01", "2005-03-12"],
+
+    "LANDSAT.LE07_SR": ["2022-03-01", "2022-03-12"],
+    "LANDSAT.LE07_ST": ["2022-03-01", "2022-03-12"],
+    "LANDSAT.LC08_SR": ["2022-03-01", "2022-03-12"],
+    "LANDSAT.LC08_ST": ["2022-03-01", "2022-03-12"],
+    "LANDSAT.LC09_SR": ["2022-03-01", "2022-03-12"],
+    "LANDSAT.LC09_ST": ["2022-03-01", "2022-03-12"],
+
 }
 
 
@@ -270,7 +304,7 @@ def test_base(source_product, tmp_path):
     source = x[0]
     product_name = ".".join(x[1:])
 
-    timelim = TIMELIM.get(source, None)
+    timelim = TIMELIM.get(source, TIMELIM.get(source_product, None))
     req_vars = SOURCES[source_product]
     latlim = [29.4, 29.5]
     lonlim = [30.7, 30.8]
@@ -297,6 +331,23 @@ def test_base(source_product, tmp_path):
     assert has_geotransform(ds)
     assert np.all([int(ds[var].notnull().sum().values) > 0 for var in ds.data_vars])
 
+@pytest.mark.parametrize("source_product", sorted(SOURCES.keys()))
+def test_most_recent(source_product):
+
+    x = source_product.split(".")
+    source = x[0]
+    product_name = ".".join(x[1:])
+    latlim = [29.4, 29.5]
+    lonlim = [30.7, 30.8]
+    mod = importlib.import_module(f"pywapor.collect.product.{source}")
+
+    x = mod.most_recent(product_name, latlim, lonlim)
+
+    if isinstance(x, datetime.datetime):
+        assert x.timestamp() < datetime.datetime.now().timestamp()
+    else:
+        assert isinstance(x, type(None))
+
 
 @pytest.mark.parametrize("source_product", sorted(SOURCES.keys()))
 def test_future(source_product, tmp_path):
@@ -310,7 +361,7 @@ def test_future(source_product, tmp_path):
 
     timelim = [
         (datetime.date.today() - datetime.timedelta(days=45)).strftime("%Y-%m-%d"),
-        (datetime.date.today() + datetime.timedelta(days=1)).strftime("%Y-%m-%d"),
+        (datetime.date.today() + datetime.timedelta(days=45)).strftime("%Y-%m-%d"),
     ]
     req_vars = SOURCES[source_product]
     latlim = [29.4, 29.5]
@@ -340,5 +391,6 @@ def test_future(source_product, tmp_path):
 
 
 if __name__ == "__main__":
+
     tmp_path = r"/Users/hmcoerver/Local/test_dl_GEOS5_0"
-    product_name = "GEOS5"
+    source_product = "CHIRPS.P05"
