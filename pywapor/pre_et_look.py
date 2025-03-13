@@ -13,7 +13,7 @@ import xarray as xr
 from functools import partial
 import pywapor.general.pre_defaults as defaults
 from pywapor.general.variables import fill_attrs
-from pywapor.enhancers.temperature import lapse_rate as _lapse_rate
+from pywapor.enhancers.temperature import lapse_rate_to_all
 
 def rename_vars(ds, *args):
     """Rename some variables in a dataset.
@@ -34,23 +34,6 @@ def rename_vars(ds, *args):
     ds = ds.rename({k: k + "_24" for k in present_vars})
     return ds
 
-def lapse_rate(ds, *args):
-    """Applies lapse rate correction to variables whose name contains `"t_air"`.
-
-    Parameters
-    ----------
-    ds : xr.Dataset
-        Dataset on whose variables containing `"t_air"` a lapse rate correction will be applied.
-
-    Returns
-    -------
-    xr.Dataset
-        Dataset on whose variables containing `"t_air"` a lapse rate correction has been applied.
-    """
-    present_vars = [x for x in ds.variables if "t_air" in x]
-    for var in present_vars:
-        ds = _lapse_rate(ds, var)
-    return ds
 
 def calc_doys(ds, *args, bins = None):
     """Calculate the day-of-the-year (doy) in the middle of a timebin and assign the results to a new
@@ -105,7 +88,7 @@ def add_constants_new(ds, *args): # TODO make sure this only adds constants for 
             ds[var] = value
     return ds
 
-def main(folder, latlim, lonlim, timelim, sources = "level_2_v3", bin_length = 1, enhancers = [lapse_rate]):
+def main(folder, latlim, lonlim, timelim, sources = "level_2_v3", bin_length = 1, enhancers = [lapse_rate_to_all]):
     """Prepare input data for `et_look`.
 
     Parameters
@@ -173,7 +156,7 @@ if __name__ == "__main__":
 #     diagnostics = None
 #     example_source = None
 #     bin_length = "DEKAD"
-    enhancers = [lapse_rate]
+    enhancers = [lapse_rate_to_all]
 
 #     import pywapor
 
