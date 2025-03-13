@@ -5,7 +5,6 @@ import tempfile
 import warnings
 import requests
 import copy
-import functools
 import urllib.parse
 import xarray as xr
 import multiprocessing
