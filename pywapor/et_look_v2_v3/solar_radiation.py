@@ -398,9 +398,9 @@ def daily_solar_radiation_toa(sc, decl, iesd, lat, slope, aspect):
         :math:`\lambda`
         [rad]
     slope : float
-        slope, 
+        slope (0 is flat, 90 is vertical), 
         :math:`\Delta`
-        [rad]
+        [deg]
     aspect : float
         aspect (0 is north; 180 is south), 
         :math:`\alpha`
@@ -425,6 +425,7 @@ def daily_solar_radiation_toa(sc, decl, iesd, lat, slope, aspect):
     265.74072308978026
     """
     aspect_rad = np.deg2rad(aspect)
+    slope_rad = np.deg2rad(slope)
 
     # hour angle for the whole day in half-hourly intervals (0:15-23:45)
     t_start = 0.25
@@ -435,7 +436,7 @@ def daily_solar_radiation_toa(sc, decl, iesd, lat, slope, aspect):
 
     if isinstance(sc, xr.DataArray):
         ha = xr.concat(hours, dim = times).rename({"concat_dim": "times"}).rename("hour_angle").chunk({"times":-1})
-        csza = cosine_solar_zenith_angle(ha, decl, lat, slope, aspect_rad)
+        csza = cosine_solar_zenith_angle(ha, decl, lat, slope_rad, aspect_rad)
         ra_24_toa = inst_solar_radiation_toa(csza, iesd).mean(dim = "times")
     else:
         ra_24_toa = 0
