@@ -12,6 +12,7 @@ from functools import partial
 from pywapor.general.logger import log, adjust_logger
 from pywapor.collect.downloader import collect_sources
 from pywapor.general.compositer import time_bins
+from pywapor.enhancers.temperature import lapse_rate_to_all
 from pywapor.general.processing_functions import adjust_timelim_dtype, func_from_string, open_ds, remove_ds, is_corrupt_or_empty, has_wrong_bb_or_period
 
 class Configuration():
@@ -82,7 +83,7 @@ class Configuration():
     def pname_func(x):
         return "none" if "FILE:" in x else ".".join(x.split(".")[1:])
 
-    def __init__(self, full = None, summary = None, se_root = None, 
+    def __init__(self, full: dict = None, summary = None, se_root = None, 
                  et_look = None):
         self.full = full
         self.summary = summary
@@ -291,7 +292,7 @@ class Configuration():
                         "products": products,
                         "temporal_interp": temporal_interp_,
                         "variable_enhancers": variable_enhancers,
-                        "spatial_interp": "bilinear",
+                        "spatial_interp": {"aspect": "nearest"}.get(var, "bilinear"),
                         "composite_type": composite_type,
                     }
 
@@ -796,9 +797,9 @@ class Project():
                                                 )
         return self.se_root_out
     
-    def run_pre_et_look(self, forced = False):
+    def run_pre_et_look(self, enhancers=[lapse_rate_to_all], bin_length=1, forced = False):
         if isinstance(self.et_look_in, type(None)) or forced:
-            self.et_look_in = pywapor.pre_et_look.main(self.folder, self.latlim, self.lonlim, self.period, sources = self.configuration.et_look)
+            self.et_look_in = pywapor.pre_et_look.main(self.folder, self.latlim, self.lonlim, self.period, sources = self.configuration.et_look, enhancers=enhancers, bin_length=bin_length)
         else:
             log.info("> PRE_ET_LOOK").add()
             log.info(f"--> Re-using `{os.path.split(self.et_look_in.encoding['source'])[-1]}`.")
