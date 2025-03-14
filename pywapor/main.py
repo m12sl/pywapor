@@ -12,7 +12,6 @@ from functools import partial
 from pywapor.general.logger import log, adjust_logger
 from pywapor.collect.downloader import collect_sources
 from pywapor.general.compositer import time_bins
-from pywapor.enhancers.temperature import lapse_rate_to_all
 from pywapor.general.processing_functions import adjust_timelim_dtype, func_from_string, open_ds, remove_ds, is_corrupt_or_empty, has_wrong_bb_or_period
 
 class Configuration():
@@ -22,7 +21,7 @@ class Configuration():
         "thermal": ["bt", "lst"],
         "solar radiation": ["ra_flat"],
         "precipitation": ["p"],
-        "elevation": ["z"],
+        "elevation": ["z", "slope", "aspect"],
         "meteorological": ["t_air", "t_air_min", "t_air_max", "u", "vp", "p_air", "p_air_0", "u2m", "v2m", "qv", "wv", "t_dew"],
         "statics": ["lw_slope", "lw_offset", "z_obst_max", "rs_min", "land_mask", "vpd_slope", "t_opt", "t_amp", "t_amp_year", "rn_slope", "rn_offset", "z_oro"],
         "soil moisture": ["se_root"],
@@ -50,7 +49,7 @@ class Configuration():
         [("se_root",)], 
 
         [("p",)],
-        [("z")],
+        [("z", "slope", "aspect"), ("z")],
         [("ra_flat",)],
 
         [("u",), ("u2m", "v2m")],
@@ -89,15 +88,6 @@ class Configuration():
         self.summary = summary
         self.se_root = se_root
         self.et_look = et_look
-
-        if self.full is not None and self.summary is None:
-            self.summarize()
-
-        if self.full is not None and self.se_root is None:
-            self.update_se_root_config()
-
-        if self.full is not None and self.et_look is None:
-            self.update_et_look_config()
 
     def __repr__(self):
         summary = self.summary.copy()
@@ -806,9 +796,9 @@ class Project():
                                                 )
         return self.se_root_out
     
-    def run_pre_et_look(self, forced = False, bin_length = 1, enhancers = [lapse_rate_to_all]):
+    def run_pre_et_look(self, forced = False):
         if isinstance(self.et_look_in, type(None)) or forced:
-            self.et_look_in = pywapor.pre_et_look.main(self.folder, self.latlim, self.lonlim, self.period, sources = self.configuration.et_look, bin_length=bin_length, enhancers=enhancers)
+            self.et_look_in = pywapor.pre_et_look.main(self.folder, self.latlim, self.lonlim, self.period, sources = self.configuration.et_look)
         else:
             log.info("> PRE_ET_LOOK").add()
             log.info(f"--> Re-using `{os.path.split(self.et_look_in.encoding['source'])[-1]}`.")

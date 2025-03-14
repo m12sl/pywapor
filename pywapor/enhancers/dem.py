@@ -8,11 +8,6 @@ from pywapor.general.performance import format_bytes
 from pywapor.general.processing_functions import save_ds, remove_ds
 gdal.UseExceptions()
 
-def calc_slope_and_aspect(ds, *args, **kwargs):
-    ds = calc_slope_or_aspect(ds, "slope", **kwargs)
-    ds = calc_slope_or_aspect(ds, "aspect", **kwargs)
-    return ds
-
 def calc_slope_or_aspect(ds, var, write_init = True, max_cache_size = 4e9):
 
     log.add()
