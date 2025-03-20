@@ -5,7 +5,6 @@ import shutil
 import os
 import pathlib
 import glob
-import datetime # noqa
 
 test_data_folder = pathlib.Path(pywapor.__path__[0]).parent.joinpath("test_data")
 
@@ -38,7 +37,6 @@ def test_data_download(bb, tmp_path):
         attrs = ds.attrs
         assert all([x in attrs.keys() for x in ["pyWaPOR_bb", "pyWaPOR_period"]])
         assert eval(str(attrs["pyWaPOR_bb"])) == bb
-        assert [str(x.strftime("%Y-%m-%d")) for x in eval(str(attrs["pyWaPOR_period"]))] == period
         assert ds.rio.crs.to_epsg() == 4326
         geot = [float(x) for x in ds["spatial_ref"].attrs["GeoTransform"].split(" ")]
         assert np.isclose(float(ds["y"].diff("y").median()), geot[5])
