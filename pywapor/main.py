@@ -452,7 +452,7 @@ class Project():
         if not os.path.isdir(project_folder):
             os.makedirs(project_folder)
         self.folder = project_folder
-        self.period = adjust_timelim_dtype(period)
+        self.period = adjust_timelim_dtype(period.copy())
         self.configuration = configuration
         self.dss = None
         self.bb = bb
