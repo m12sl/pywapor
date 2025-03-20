@@ -324,7 +324,7 @@ def download(
             cleanup = list()
             for j, (var, url) in enumerate(dl_urls):
                 var_file = out_fp.replace(".nc", f"_{var}_temp.nc")
-                log.info(f"--> ({j + 1}/{len(dl_urls)}) Downloading `{var}`.")
+                log.info(f"--> ({j + 1}/{len(dl_urls)}) Downloading `{var}`.").add()
 
                 if os.path.isfile(var_file):
                     corrupt = is_corrupt_or_empty(var_file)
@@ -353,6 +353,7 @@ def download(
                         # NOTE VERY IMPORTANT, otherwise easily hitting "429" errors,
                         # resulting in very strange behaviour.
                         time.sleep(10)
+                log.sub()
 
         ds = xr.merge(dss)
         ds = process_ds(ds, coords, variables)
