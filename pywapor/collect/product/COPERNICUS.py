@@ -1,5 +1,6 @@
 import copy
 import os
+import glob
 from functools import partial
 from itertools import product
 
@@ -275,6 +276,11 @@ def download(
         remove_ds(nc)
 
     remove_ds(ds__)
+
+    fhs = glob.glob(os.path.join(folder, "*_aspect.tif")) + \
+    glob.glob(os.path.join(folder, "*_slope.tif"))
+    for fh in fhs:
+        remove_ds(fh)
 
     return ds[req_vars_orig]
 

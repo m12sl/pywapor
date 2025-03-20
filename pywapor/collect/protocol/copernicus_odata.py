@@ -399,12 +399,16 @@ def process_sentinel(
         warnings.filterwarnings(
             "ignore", message="divide by zero encountered in true_divide"
         )
+        warnings.filterwarnings("ignore", category=RuntimeWarning)
         ds = save_ds(ds, fp, chunks=chunks, encoding="initiate", label="Merging files.")
 
     # Remove intermediate files.
     for dss0 in dss1.values():
         for x in dss0:
             remove_ds(x)
+
+    if not isinstance(example_ds, type(None)):
+        remove_ds(example_ds)
 
     return ds
 

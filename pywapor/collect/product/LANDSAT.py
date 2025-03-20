@@ -1428,6 +1428,16 @@ def download(
         fn, scene_paths, product_folder, product_name, variables, post_processors
     )
 
+    # Remove unpacked zips.
+    subfolders = [x for x in glob.glob(os.path.join(product_folder, "*.tar")) if os.path.isdir(x)]
+    for subfolder in subfolders:
+        if os.path.isdir(subfolder):
+            try:
+                shutil.rmtree(subfolder)
+            except PermissionError:
+                ... # Windows...
+    
+
     return ds[req_vars_orig]
 
 
