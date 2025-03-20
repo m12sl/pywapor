@@ -295,9 +295,12 @@ TIMELIM = {
 
 }
 
+@pytest.mark.parametrize("source_product", sorted(SOURCES.keys()))
+def test_small(source_product, tmp_path):
+    test_base(source_product, tmp_path, slicer=slice(1))
 
 @pytest.mark.parametrize("source_product", sorted(SOURCES.keys()))
-def test_base(source_product, tmp_path):
+def test_base(source_product, tmp_path, slicer = slice(None)):
     adjust_logger(True, tmp_path, "INFO")
     log.info(source_product)
 

@@ -18,7 +18,7 @@ BBS = {
 def test_data_download(bb, tmp_path):
 
     project_folder = tmp_path
-    period = ["2021-07-01", "2021-08-01"]
+    period = ["2021-07-01", "2021-07-05"]
 
     # Set up a project.
     project = pywapor.Project(project_folder, bb, period)
