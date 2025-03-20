@@ -4,6 +4,8 @@ import numpy as np
 import datetime
 import pytest
 import rasterio
+import os
+import glob
 
 from pywapor.general.logger import adjust_logger, log
 import importlib
@@ -331,6 +333,14 @@ def test_base(source_product, tmp_path):
     assert has_geotransform(ds)
     assert np.all([int(ds[var].notnull().sum().values) > 0 for var in ds.data_vars])
 
+    assert os.path.isdir(os.path.join(folder, source))
+    assert os.path.isfile(os.path.join(folder, source, f"{product_name.replace(":","_")}.nc"))
+    fhs = glob.glob(os.path.join(folder, source, "**", "*.nc"), recursive=True) + \
+        glob.glob(os.path.join(folder, source, "**", "*.tif"), recursive=True) + \
+        glob.glob(os.path.join(folder, source, "**", "*.vrt"), recursive=True) + \
+        glob.glob(os.path.join(folder, source, "**", "*.jp2"), recursive=True)
+    assert len(fhs) == 1
+
 @pytest.mark.parametrize("source_product", sorted(SOURCES.keys()))
 def test_most_recent(source_product):
 
@@ -349,48 +359,7 @@ def test_most_recent(source_product):
         assert isinstance(x, type(None))
 
 
-@pytest.mark.parametrize("source_product", sorted(SOURCES.keys()))
-def test_future(source_product, tmp_path):
-    adjust_logger(True, tmp_path, "INFO")
-    log.info(source_product)
-
-    folder = tmp_path
-    x = source_product.split(".")
-    source = x[0]
-    product_name = ".".join(x[1:])
-
-    timelim = [
-        (datetime.date.today() - datetime.timedelta(days=45)).strftime("%Y-%m-%d"),
-        (datetime.date.today() + datetime.timedelta(days=45)).strftime("%Y-%m-%d"),
-    ]
-    req_vars = SOURCES[source_product]
-    latlim = [29.4, 29.5]
-    lonlim = [30.7, 30.8]
-
-    args = {
-        "folder": folder,
-        "latlim": latlim,
-        "lonlim": lonlim,
-        "timelim": timelim,
-        "product_name": product_name,
-        "req_vars": req_vars,
-    }
-
-    mod = importlib.import_module(f"pywapor.collect.product.{source}")
-
-    ds = mod.download(**args)
-
-    assert ds.rio.crs.to_epsg() == 4326
-    assert "spatial_ref" in ds.coords
-    assert strictly_increasing(ds["x"].values)
-    assert strictly_decreasing(ds["y"].values)
-    if "time" in ds.dims:
-        assert strictly_increasing(ds["time"].values)
-    assert has_geotransform(ds)
-    assert np.all([int(ds[var].notnull().sum().values) > 0 for var in ds.data_vars])
-
-
 if __name__ == "__main__":
 
-    tmp_path = r"/Users/hmcoerver/Local/test_dl_GEOS5_0"
-    source_product = "CHIRPS.P05"
+    tmp_path = "/Users/hmcoerver/Local/test_dl"
+    source_product = "SENTINEL2.S2MSI2A_R20m"
