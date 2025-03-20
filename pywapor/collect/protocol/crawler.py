@@ -49,7 +49,7 @@ def find_paths(url, regex, node_type = "a", tag = "href", filter = None, session
         f = file_object.content
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message="It looks like you're parsing an XML document using an HTML parser.")
-        soup = BeautifulSoup(f, features="lxml")
+        soup = BeautifulSoup(f, features="xml")
     file_tags = soup.find_all(node_type, {tag: re.compile(regex)})
     if not isinstance(filter, type(None)):
         file_tags = np.unique([filter(tag) for tag in file_tags], axis = 0).tolist()
@@ -302,7 +302,7 @@ def download_url(url, fp, session = None, waitbar = True, headers = None,
         try:
             fp = _download_url(url, fp, session = session, waitbar = waitbar, headers = headers)
             succes = True
-        except socket.timeout as e:
+        except socket.timeout:
             log.info("--> Server connection timed out.")
         except HTTPError as e:
             error_body = getattr(getattr(e, "response", ""), "text", "")
