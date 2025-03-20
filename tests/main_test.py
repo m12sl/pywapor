@@ -3,10 +3,11 @@ import pytest
 import numpy as np
 import shutil
 import os
+import pathlib
 import glob
 import datetime # noqa
 
-test_data_folder = "/Users/hmcoerver/Library/Mobile Documents/com~apple~CloudDocs/GitHub/pywapor/test_data"
+test_data_folder = pathlib.Path(pywapor.__path__[0]).parent.joinpath("test_data")
 
 BBS = {
     "fayoum": [31.0, 28.9, 31.2, 29.1],

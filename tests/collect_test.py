@@ -334,7 +334,8 @@ def test_base(source_product, tmp_path):
     assert np.all([int(ds[var].notnull().sum().values) > 0 for var in ds.data_vars])
 
     assert os.path.isdir(os.path.join(folder, source))
-    assert os.path.isfile(os.path.join(folder, source, f"{product_name.replace(":","_")}.nc"))
+    x = product_name.replace(":","_")
+    assert os.path.isfile(os.path.join(folder, source, f"{x}.nc"))
     fhs = glob.glob(os.path.join(folder, source, "**", "*.nc"), recursive=True) + \
         glob.glob(os.path.join(folder, source, "**", "*.tif"), recursive=True) + \
         glob.glob(os.path.join(folder, source, "**", "*.vrt"), recursive=True) + \
