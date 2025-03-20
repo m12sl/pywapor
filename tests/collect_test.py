@@ -310,7 +310,7 @@ def test_base(source_product, tmp_path, slicer = slice(None)):
     product_name = ".".join(x[1:])
 
     timelim = TIMELIM.get(source, TIMELIM.get(source_product, None))
-    req_vars = SOURCES[source_product]
+    req_vars = SOURCES[source_product][slicer]
     latlim = [29.4, 29.5]
     lonlim = [30.7, 30.8]
 
