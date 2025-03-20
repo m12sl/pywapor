@@ -116,7 +116,7 @@ def remove_ds(ds):
         try:
             ds = xr.open_dataset(fp, chunks = "auto")
             ds = ds.close()
-        except OSError:
+        except (OSError, ValueError):
             ... # file is corrupt/incomplete
 
         try:
