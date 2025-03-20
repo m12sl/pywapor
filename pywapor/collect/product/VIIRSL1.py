@@ -172,9 +172,7 @@ def search_stac(params, cachedir=None, extra_filters={"day_night_flag": "DAY"}):
             out = _post_search(params_, params_={})
         all_scenes += out["features"]
         links = out["links"]
-        print("x")
         if "datetime" not in params.keys():
-            print("Y")
             return all_scenes
     log.info(f"--> Found {len(all_scenes)} `{params['collections'][0]}` scenes.")
 
