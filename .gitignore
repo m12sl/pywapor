@@ -20,6 +20,8 @@
 *.jar
 
 .coverage*
+tests/coverage/coverage.xml
+tests/coverage/coverage.lcov
 
 archive/
 # JetBrains IDE
