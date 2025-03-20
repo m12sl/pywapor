@@ -20,7 +20,7 @@ def calc_slope_or_aspect(ds, var, write_init = True, max_cache_size = 4e9):
     # Get filepath from xr.Dataset.
     fp = ds.encoding.get("source", None)
 
-    if not var in ["slope", "aspect"]:
+    if var not in ["slope", "aspect"]:
         raise ValueError("Please set `var` to either `'slope'` or `'aspect'`.")
 
     # Write data to file if necessary.
@@ -87,7 +87,8 @@ def calc_slope_or_aspect(ds, var, write_init = True, max_cache_size = 4e9):
 
     options = gdal.DEMProcessingOptions(**options_)
 
-    f_size = lambda nbytes: "{0:.2f}{1}".format(*format_bytes(nbytes))
+    def f_size(nbytes):
+        return "{0:.2f}{1}".format(*format_bytes(nbytes))
 
     current_cache_size = gdal.GetCacheMax()
     if "NETCDF:" in fp:
