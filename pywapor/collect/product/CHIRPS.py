@@ -93,7 +93,7 @@ def most_recent(product_name, *args):
         year = year - 1
         url = f"https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_daily/cogs/{product_name.lower()}/{year}"
         r = requests.get(url)
-        soup = BeautifulSoup(r.content, "lxml")
+        soup = BeautifulSoup(r.content, features="lxml")
         x = soup.findAll(lambda tag: tag.name == "a" and ".cog" in tag.text)
         if len(x) > 0:
             nothing_found = False
