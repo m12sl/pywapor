@@ -264,7 +264,7 @@ TIMELIM = {
     "COPERNICUS": None,
     "MODIS": ["2019-03-01", "2019-04-01"],
     "MERRA2": ["2022-03-01", "2022-03-03"],
-    "VIIRSL1": ["2022-03-01", "2022-03-02"],
+    "VIIRSL1": ["2022-03-01", "2022-03-01"],
     # opendap.xarray
     "GEOS5": ["2022-03-01", "2022-03-03"],
     # cds
@@ -365,5 +365,9 @@ def test_most_recent(source_product):
 
 if __name__ == "__main__":
 
+    import os
+    os.environ["PYWAPOR_REMOVE_TEMP_FILES"] = "NO"
+
     tmp_path = "/Users/hmcoerver/Local/test_dl"
-    source_product = "SENTINEL2.S2MSI2A_R20m"
+    source_product = "SENTINEL2.S2MSI2A_R10m"
+    slicer = slice(None)
