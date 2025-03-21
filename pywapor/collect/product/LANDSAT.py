@@ -1429,13 +1429,15 @@ def download(
     )
 
     # Remove unpacked zips.
-    subfolders = [x for x in glob.glob(os.path.join(product_folder, "*.tar")) if os.path.isdir(x)]
-    for subfolder in subfolders:
-        if os.path.isdir(subfolder):
-            try:
-                shutil.rmtree(subfolder)
-            except PermissionError:
-                ... # Windows...
+    rmve = {"NO": False, "YES": True}.get(os.environ.get("PYWAPOR_REMOVE_TEMP_FILES", "YES"), True)
+    if rmve:
+        subfolders = [x for x in glob.glob(os.path.join(product_folder, "*.tar")) if os.path.isdir(x)]
+        for subfolder in subfolders:
+            if os.path.isdir(subfolder):
+                try:
+                    shutil.rmtree(subfolder)
+                except PermissionError:
+                    ... # Windows...
     
 
     return ds[req_vars_orig]

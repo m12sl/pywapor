@@ -361,10 +361,11 @@ def process_sentinel(
             os.environ.get("PYWAPOR_REMOVE_TEMP_FILES", "YES"), True
         )
         if remove_folder and rmve:
-            try:
-                shutil.rmtree(scene_folder)
-            except PermissionError:
-                log.info(f"--> Unable to delete folder `{scene_folder}`.")
+            if os.path.isdir(scene_folder):
+                try:
+                    shutil.rmtree(scene_folder)
+                except PermissionError:
+                    log.info(f"--> Unable to delete folder `{scene_folder}`.")
 
     log.sub()
 
