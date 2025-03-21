@@ -604,7 +604,7 @@ def s2_processor(scene_folder, variables, **kwargs):
         else:
             ds.attrs = {"scale_factor": 10000.0, "offset_factor": -1000.0}
         log.warning(
-            f"--> No scale/offset found for `{meta_fps[0]}`, using `{ds.attrs}`."
+            f"--> No scale/offset found for `{scene_folder}`, using `{ds.attrs}`."
         )
 
     return ds, dss__
