@@ -1,6 +1,6 @@
 ## pyWaPOR
 
-![downloads](https://img.shields.io/pypi/dw/pywapor) [![version](https://img.shields.io/pypi/v/pywapor)](https://pypi.org/project/pywapor/)
+![downloads](https://img.shields.io/pypi/dw/pywapor) ![coverage](https://bitbucket.org/cioapps/pywapor/raw/dev/tests/coverage/coverage.svg) [![version](https://img.shields.io/pypi/v/pywapor)](https://pypi.org/project/pywapor/) 
 
 This repository contains a Python implementation of the algorithm used to generate the [WaPOR](http://www.fao.org/in-action/remote-sensing-for-water-productivity/en/) [datasets](https://wapor.apps.fao.org/home/WAPOR_2/1). It can be used to calculate evaporation, transpiration and biomass production maps.
 
@@ -139,6 +139,18 @@ The methodology for WaPOR was developed by the FRAME1 consortium, consisting of 
 The code in the pywapor.et_look_v2_v3 module of this repository, containing all core physical functions used by ETLook, was written by Henk Pelgrum (eLEAF) and Rutger Kassies (eLEAF). The remaining modules have been developed by Bert Coerver (FAO), Tim Hessels (WaterSat), and, in the framework of the ESA-funded ET4FAO project, Radoslaw Guzinski (DHI-GRAS), Hector Nieto (Complutig) and Laust Faerch (DHI-GRAS).
 
 ### Release Notes
+
+#### 3.6.0 (2025-03-21)
+<br>
+<ul>
+<li> All the main classes and methods now have proper documentation, examples and typing.</li>
+<li> Added more tests, coverage should go up further over the next months.</li>
+<li> You can now use the `project.set_remove_temp_files` method to turn on or off the deletion of temporary files.</li>
+<li> When passing the `slope` and `aspect` variables to `et_look`, the solar radiation will now be corrected using Allen et al. (2006)</li>
+<li> Added support for the 10m Sentinel-2 product.</li>
+<li> Added products from `LSASAF` to the collector, mostly interesting for its solar radiation data.</li>
+<li> Many bugfixes, see the commits and the issues sections for more details.</li>
+</ul>
 
 #### 3.5.0 (2024-03-19)
 <br>
