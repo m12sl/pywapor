@@ -836,6 +836,9 @@ def download(
 
     ds = save_ds(ds, fn, encoding="initiate", label="Merging files.")
 
+    for x in all_proj_files:
+        remove_ds(x)
+
     return ds[req_vars_orig]
 
 
