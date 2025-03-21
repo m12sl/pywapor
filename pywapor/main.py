@@ -8,6 +8,8 @@ import warnings
 import json
 import importlib
 from osgeo import gdal
+import xarray as xr
+from typing import List, Literal, Dict, Callable
 from functools import partial
 from pywapor.general.logger import log, adjust_logger
 from pywapor.collect.downloader import collect_sources
@@ -16,6 +18,8 @@ from pywapor.enhancers.temperature import lapse_rate_to_all
 from pywapor.general.processing_functions import adjust_timelim_dtype, func_from_string, open_ds, remove_ds, is_corrupt_or_empty, has_wrong_bb_or_period
 
 class Configuration():
+    """A `pywapor.configuration` specifies which products to use for each variable and
+    how to preprocess them."""
 
     variable_categories = {
         "optical": ["ndvi", "r0", "mndwi", "psri", "vari_red_edge", "bsi", "nmdi", "green", "nir"],
@@ -27,8 +31,11 @@ class Configuration():
         "statics": ["lw_slope", "lw_offset", "z_obst_max", "rs_min", "land_mask", "vpd_slope", "t_opt", "t_amp", "t_amp_year", "rn_slope", "rn_offset", "z_oro"],
         "soil moisture": ["se_root"],
     }
+    """Specifies which variables area included in each summary group."""
 
     category_variables = {}
+    """Specifies a category per variable, i.e. its the inverse of `variable_categories` and
+    any changes made should be reflected in both."""
     for x in [{var: cat for var in varis} for cat, varis in variable_categories.items()]:
         category_variables = {**category_variables, **x}
 
@@ -42,6 +49,10 @@ class Configuration():
         [("wv",)], 
         [("t_dew",), ("qv",)]
         ]
+    """Specifies the required variables to run the full SE_ROOT model and gives
+    different options. For example, it possible to either use `"t_dew"` or `"qv"`.
+    Another example, it is possible to either use `"bt"` AND `"lst"` or only 
+    one of them."""
     
     et_look_vars = [
         [("ndvi",)],
@@ -74,21 +85,116 @@ class Configuration():
         [("z_obst_max",), ()],
         [("z_oro",), ()],
         ]
+    """Specifies the required variables to run the full ET_LOOK model and gives
+    different options. For example, it possible to either use `"t_dew"` or `"qv"`.
+    Another example, it is possible to either use `"u"` or `"u2m"` AND `"v2m"`."""
     
     @staticmethod
-    def source_func(x):
+    def source_func(x: str):
+        """Given a full `source.product` string, returns the `source` only.
+
+        Parameters
+        ----------
+        x : str
+            String describing the `source.product`.
+
+        Returns
+        -------
+        str
+            The `source`.
+        """
         return x if "FILE:" in x else x.split(".")[0]
     
     @staticmethod
-    def pname_func(x):
+    def pname_func(x: str):
+        """Given a full `source.product` string, returns the `product` only.
+
+        Parameters
+        ----------
+        x : str
+            String describing the `source.product`.
+
+        Returns
+        -------
+        str
+            The `product`.
+        """
         return "none" if "FILE:" in x else ".".join(x.split(".")[1:])
 
-    def __init__(self, full: dict = None, summary = None, se_root = None, 
-                 et_look = None):
+
+    def __init__(self, full: dict | None = None, summary: dict | None = None, se_root: dict | None = None, 
+                 et_look: dict | None = None):
+        """It is advised to use one of the `from_` methods to instantiate a configuration
+        instead.
+
+        Parameters
+        ----------
+        full : dict | None, optional
+            The full configuration contains all variables that will be used by either
+            ET_LOOK or SE_ROOT. When changed, `configuration.update_se_root_config` and
+            `configuration.update_et_look_config` should be called to make sure they are
+            in sync with eachother, by default None.
+        summary : dict | None, optional
+            A summary (and a simplification) of the `full` configuration, by default None.
+        se_root : dict | None, optional
+            Part of the `full` configuration that is relevant for the SE_ROOT model. Should 
+            generally not be changed directly, but through changing `configuration.full` and calling
+            `configuration.update_se_root_config` instead, by default None.
+        et_look : dict | None, optional
+            Part of the `full` configuration that is relevant for the ET_LOOK model. Should 
+            generally not be changed directly, but through changing `configuration.full` and calling
+            `configuration.update_et_look_config` instead, by default None.
+
+        Notes
+        -------
+        See `configuration.full` for more details and the `configuration.from_summary` method
+        for a description of `configuration.summary`.
+        """
+
         self.full = full
+        """The full configuration contains all variables that will be used by either
+        ET_LOOK or SE_ROOT. When changed, `configuration.update_se_root_config` and
+        `configuration.update_et_look_config` should be called to make sure they are
+        in sync with eachother.
+        
+        Example
+        -------
+        Each `key` in `full` defines (1) the `products` from which the variable should
+        be generated, (2) the `temporal_interp` that should be used, (3) any specific enhancers
+        that should be applied to this variable, (4) which spatial interpolation should be applied
+        and (5) how the variable should be composited.::
+
+            full["ndvi"] = {
+                'products': [
+                    {
+                    'source': 'SENTINEL2',
+                    'product_name': 'S2MSI2A_R60m',
+                    'enhancers': [
+                        {'func': 'pywapor.collect.product.SENTINEL2.calc_normalized_difference'},
+                        {'func': 'pywapor.enhancers.gap_fill.gap_fill'}
+                        ],
+                    'is_example': True
+                    },
+                ],
+                'temporal_interp': {'lmbdas': 1000.0, 'method': 'whittaker'},
+                'variable_enhancers': [],
+                'spatial_interp': 'bilinear',
+                'composite_type': 'mean'
+            }
+        """
+
         self.summary = summary
+        """A summary (and a simplification) of the `full` configuration."""
+
         self.se_root = se_root
+        """Part of the `full` configuration that is relevant for the SE_ROOT model. Should 
+        generally not be changed directly, but through changing `configuration.full` and calling
+        `configuration.update_se_root_config` instead."""
+
         self.et_look = et_look
+        """Part of the `full` configuration that is relevant for the ET_LOOK model. Should 
+        generally not be changed directly, but through changing `configuration.full` and calling
+        `configuration.update_et_look_config` instead."""
 
     def __repr__(self):
         summary = self.summary.copy()
@@ -109,11 +215,27 @@ class Configuration():
         return base + additional
 
     @staticmethod
-    def default_enhancers(prod, var):
-        source = Configuration.source_func(prod)
+    def default_enhancers(src_prod: str, var: str):
+        """Given a `source.product` string and a variable name, returns
+        which enhancers should be applied by default.
+
+        Parameters
+        ----------
+        src_prod : str
+            `source.product` string, e.g. `"SENTINEL2.S2MSI2A_R20m"`.
+        var : str
+            variable name, e.g. `"ndvi"`.
+
+        Returns
+        -------
+        List[Callable]
+            List of functions that are to be applied by default to the variable
+            after downloading.
+        """
+        source = Configuration.source_func(src_prod)
         if "FILE:" in source:
             return []
-        product_name = Configuration.pname_func(prod)
+        product_name = Configuration.pname_func(src_prod)
         mod = importlib.import_module(f"pywapor.collect.product.{source}")
         x = mod.default_post_processors(product_name, [var])[var]
 
@@ -131,7 +253,24 @@ class Configuration():
         return funcs
 
     @classmethod
-    def from_name(cls, name):
+    def from_name(cls, name: Literal["WaPOR3_level_2", "WaPOR3_level_3", "WaPOR2_level_1", "WaPOR2_level_2", "WaPOR2_level_3", "nrt", "all_in"]):
+        """Create a configuration instance from a `name`.
+
+        Parameters
+        ----------
+        name : Literal["WaPOR3_level_2", "WaPOR3_level_3", "WaPOR2_level_1", "WaPOR2_level_2", "WaPOR2_level_3", "nrt", "all_in"]
+            Choose which configuration to instantiate.
+
+        Returns
+        -------
+        Configuration
+            A pywapor.Configuration.
+
+        Raises
+        ------
+        ValueError
+            Unkown `name`.
+        """
         log.info(f"--> Searching configuration for `{name}`.").add()
 
         folder = os.path.realpath(pywapor.__path__[0])
@@ -169,7 +308,15 @@ class Configuration():
 
         return config
     
-    def to_json(self, fh):
+    def to_json(self, fh: str):
+        """Save the configuration as a json file.
+
+        Parameters
+        ----------
+        fh : str
+            Path to destination.
+
+        """
         out = {
             "summary": self.summary, 
             "full": self.full, 
@@ -196,7 +343,19 @@ class Configuration():
             x.write(json_string)
 
     @classmethod
-    def from_json(cls, fh):
+    def from_json(cls, fh: str):
+        """Create a configuration instance from a `json`-file.
+
+        Parameters
+        ----------
+        fh : str
+            Path of the JSON-file.
+
+        Returns
+        -------
+        Configuration
+            A pywapor.Configuration.
+        """
         log.info(f"--> Loading configuration from `{os.path.split(fh)[1]}`.").add()
         def decode_set(dct):
             if dct.get("type", None) == "set":
@@ -215,7 +374,66 @@ class Configuration():
         return config
     
     @classmethod
-    def from_summary(cls, summary):
+    def from_summary(cls, summary: dict):
+        """Create a configuration instance from a summary.
+
+        Parameters
+        ----------
+        summary : dict
+            A summary of a configuration, see after this for a description
+            of the different keys andthe example section below.
+        \\_EXAMPLE_ : str
+            Specifies which product should be use for spatial alignment. The
+            product defined here will determine the resolution
+            of the final output.
+        \\_ENHANCE_ : Dict[str, list]
+            Specifies which functions should be applied to specific variables,
+            is generally used to turn on or off thermal sharpening.
+        \\_WHITTAKER_ : Dict[str, Dict]
+            Specifies which products should be interpolated with the special
+            whittaker interpolation. I.e the interpolation will be applied to
+            all variables belong to the specified product.
+        elevation, meteorological, statics, etc. : set
+            Specify which products to use for the category of variables. Check
+            `pywapor.Configuration.variable_categories` to see (or adjust) which
+            variables belong to each category.
+
+        Returns
+        -------
+        Configuration
+            A pywapor.Configuration.
+
+        Example
+        -------
+        The summary can contain several keys, of which only `_EXAMPLE_`,
+        `_ENHANCE_` and `_WHITTAKER_` are mandatory. Additionaly, the product
+        defined as `_EXAMPLE_` should also appear in at least one of the other
+        keys (e.g. below the example product `'SENTINEL2.S2MSI2A_R20m'` also 
+        appears under the `optical` key).::
+
+            summary = {
+                'elevation': {'COPERNICUS.GLO30'},
+                'meteorological': {'GEOS5.tavg1_2d_slv_Nx'},
+                'optical': {'SENTINEL2.S2MSI2A_R20m'},
+                'precipitation': {'CHIRPS.P05'},
+                'solar radiation': {'ERA5.sis-agrometeorological-indicators'},
+                'statics': {'STATICS.WaPOR3'},
+                'thermal': {'VIIRSL1.VNP02IMG'},
+
+                'soil moisture': {'FILE:{folder}{sep}se_root_out*.nc'},
+
+                '_EXAMPLE_': 'SENTINEL2.S2MSI2A_R20m', 
+                '_ENHANCE_': {"bt": ["pywapor.enhancers.dms.thermal_sharpener.sharpen"],},
+                '_WHITTAKER_': {
+                    'SENTINEL2.S2MSI2A_R20m': {'lmbdas': 1000.0, 'method': 'whittaker'}, 
+                    'VIIRSL1.VNP02IMG': {'a': 0.85, 'lmbdas': 1000.0, 'method': 'whittaker'}},
+                }
+
+        Finally, instead of specifying a `source.product` string, it is also possible to
+        pass in your own files, as long as they contain the required variables. To do so, create
+        a string that can be passed to `glob.glob` and append `"FILE:"` in front of it. See the
+        `soil_moisture` key above for an example.
+        """
         log.info("--> Creating configuration from summary.").add()
 
         valids = set(cls.variable_categories.keys()).union({"_EXAMPLE_", "_WHITTAKER_", "_ENHANCE_"})
@@ -305,24 +523,50 @@ class Configuration():
         return config
 
     @staticmethod
-    def has_var(prod, var, verbose = True):
-        source = Configuration.source_func(prod)
-        product_name = Configuration.pname_func(prod)
+    def has_var(src_prod: str, variable: str, verbose = True):
+        """Check if the given `variable` exists for the given `source.product`.
+
+        Parameters
+        ----------
+        src_prod : str
+            `source.product` string, e.g. `"SENTINEL2.S2MSI2A_R20m"`.
+        variable : str
+            variable name, e.g. `"ndvi"`.
+        verbose : bool, optional
+            Turn on or off info logging, by default True.
+
+        Returns
+        -------
+        bool
+            Whether or not the `variable` exists.
+        """
+
+
+        source = Configuration.source_func(src_prod)
+        product_name = Configuration.pname_func(src_prod)
         if "FILE:" in source:
             if not verbose:
-                log.info(f"> Variable `{var}` will be loaded from a file `{source}`.")
+                log.info(f"> Variable `{variable}` will be loaded from a file `{source}`.")
             return True
         mod = importlib.import_module(f"pywapor.collect.product.{source}")
         try:
-            mod.default_vars(product_name, [var])
+            mod.default_vars(product_name, [variable])
             valid = True
         except TypeError:
             valid = False
             if not verbose:
-                log.warning(f"> {source}.{product_name} does not have a variable called `{var}`.") 
+                log.warning(f"> {source}.{product_name} does not have a variable called `{variable}`.") 
         return valid
     
     def validate(self):
+        """Checks for each product specified in `configuration.full` if the 
+        required variable exists.
+
+        Returns
+        -------
+        bool
+            Whether or not the variable sources are valid.
+        """
         log.info("--> Validating configuration.").add()
         valids = []
         for var in self.full:
@@ -336,6 +580,8 @@ class Configuration():
         return valid
 
     def update_se_root_config(self):
+        """Sync `configuration.full` with `configuration.se_root`.
+        """
         log.info("--> Making configuration for SE_ROOT.").add()
         
         sharpened_vars = {var for var, config in self.full.items() if any(["sharpen" in x for x in config["variable_enhancers"]])}
@@ -368,6 +614,8 @@ class Configuration():
         log.sub()
 
     def update_et_look_config(self):
+        """Sync `configuration.full` with `configuration.et_look`.
+        """
         log.info("--> Making configuration for ET_LOOK.").add()
         
         sharpened_vars = {var for var, config in self.full.items() if any(["sharpen" in x for x in config["variable_enhancers"]])}
@@ -402,6 +650,11 @@ class Configuration():
         log.sub()
 
     def summarize(self):
+        """Creates a summary of `configuration.full`. Note that a `summary` cannot
+        show all details of a full configuration and check the `configuration.from_summary`
+        method for a more detailed description of a `summary`.
+        """
+
         log.info("--> Making summary of configuration.")
         
         summary = dict()
@@ -442,49 +695,66 @@ class Configuration():
         self.summary = summary
 
 class Project():
+    """A `pywapor.project` contains all (meta)data required to run one of the included
+    models. It is closely linked to a `project_folder` on your disk and different
+    projects should never share the same folder.
+    """
 
-    def __init__(self, project_folder, bb, period, configuration = None):
+    def __init__(self, project_folder: str, bb: List[float], period: List[str], configuration: Configuration = None):
 
         assert bb[::2][0] < bb[::2][1], "Invalid Bounding-Box"
-        self.lonlim = bb[::2]
+        self.lonlim: List[float] = bb[::2]
+        """Longitude limits, e.g. [-170.2, -160.78]."""
+
         assert bb[1::2][0] < bb[1::2][1], "Invalid Bounding-Box"
-        self.latlim = bb[1::2]
+        self.latlim: List[float] = bb[1::2]
+        """Latitude limits, e.g. [-12.9 -79.6]."""
+
         if not os.path.isdir(project_folder):
             os.makedirs(project_folder)
-        self.folder = project_folder
-        self.period = adjust_timelim_dtype(period.copy())
-        self.configuration = configuration
-        self.dss = None
-        self.bb = bb
+        self.folder: str = project_folder
+        """Folder in which (temporary) files will be stored."""
+
+        self.period: List[str] = adjust_timelim_dtype(period.copy())
+        """Period for which data will be generated, e.g. ['2021-03-01', '2021-05-07']."""
+
+        self.configuration: Configuration = configuration
+        """Configuration instance describing which sources to use, see pywapor.Configuration."""
+        
+        self.dss: dict | None = None
+        """Overview of collected datasets."""
+        
+        self.bb: List[float] = bb
+        """Area for which data will be generated, e.g. [31.0, 28.9, 31.2, 29.1]."""
 
         os.environ["pyWaPOR_bb"] = str(self.bb)
         os.environ["pyWaPOR_period"] = str(self.period)
 
         warnings.filterwarnings("ignore", message="invalid value encountered in power")
-
         adjust_logger(True, self.folder, "INFO")
 
+        self.se_root_in: xr.Dataset | str | None = None
+        """Dataset with input for the SE_ROOT model."""        
         if os.path.isfile(os.path.join(self.folder, "se_root_in.nc")):
             self.se_root_in = open_ds(os.path.join(self.folder, "se_root_in.nc"))
-        else:
-            self.se_root_in = None
 
+
+        self.se_root_out: xr.Dataset | str | None = None
+        """Dataset with output of the SE_ROOT model."""
         se_root_outs = glob.glob(os.path.join(self.folder, "se_root_out*.nc"))
         if se_root_outs:
             self.se_root_out = open_ds(max(se_root_outs, key=os.path.getmtime))
-        else:
-            self.se_root_out = None
 
+        self.et_look_in: xr.Dataset | str | None = None
+        """Dataset with input for the ET_LOOK model."""
         if os.path.isfile(os.path.join(self.folder, "et_look_in.nc")):
             self.et_look_in = open_ds(os.path.join(self.folder, "et_look_in.nc"))
-        else:
-            self.et_look_in = None
 
+        self.et_look_out: xr.Dataset | str | None = None
+        """Dataset with output of the ET_LOOK model."""
         et_look_outs = glob.glob(os.path.join(self.folder, "et_look_out*.nc"))
         if et_look_outs:
             self.et_look_out = open_ds(max(et_look_outs, key=os.path.getmtime))
-        else:
-            self.et_look_out = None
 
         log.info("> PROJECT").add()
         log.info(self.__repr__())
@@ -493,6 +763,8 @@ class Project():
         log.sub().info("< PROJECT")
 
     def check_gdal_drivers(self):
+        """Check if required GDAL drivers are installed.
+        """
         required_drivers = [
             "GTiff",
             "JP2OpenJPEG",
@@ -511,6 +783,8 @@ class Project():
         log.sub()
 
     def check_pywapor_version(self):
+        """Check if current pywapor version is the most recent.
+        """
         current_version = pywapor.__version__
         package = 'pywapor'
         log.info(f"--> pyWaPOR ({current_version}):").add()
@@ -544,8 +818,26 @@ class Project():
     --> Configuration:
         > {self.configuration}"""
         return project_str
+    
+    def load_configuration(self, name: Literal["WaPOR3_level_2", "WaPOR3_level_3", "WaPOR2_level_1", "WaPOR2_level_2", "WaPOR2_level_3", "nrt", "all_in"] | None = None, summary: dict | None = None, json: str | None = None):
+        """Load a configuration for the project. Exactly one of `name`, `summary` and 
+        `json` should be used.
 
-    def load_configuration(self, name = None, summary = None, json = None):
+        Parameters
+        ----------
+        name : Literal["WaPOR3_level_2", "WaPOR3_level_3", "WaPOR2_level_1", "WaPOR2_level_2", "WaPOR2_level_3", "nrt", "all_in"], optional
+            Load a predefined configuration, by default None.
+        summary : dict, optional
+            Load a configuration from a summary, by default None.
+        json : str, optional
+            Load a configuration from a json-file, by default None.
+
+        Returns
+        -------
+        Configuration
+            Configuration instance.
+        """
+
         if not isinstance(name, type(None)) and not isinstance(summary, type(None)):
             raise ValueError("Only one of `level` and `summary` can be specified.")
         log.info("> CONFIGURATION").add()
@@ -569,6 +861,10 @@ class Project():
         return self.configuration
     
     def validate_project_folder(self):
+        """Perform several diagnostic tests on the project folder. Mostly to 
+        detect whether or not different projects have been mixed up in the same
+        folder.
+        """
         log.info("--> Checking project folder.").add()
         if not os.path.isabs(self.folder):
             self.folder = os.path.abspath(self.folder)
@@ -627,6 +923,9 @@ class Project():
         log.sub()
 
     def clean_project_folder(self):
+        """Searched the project folder for corrupt or temporary files that
+        couldn't be deleted previously and try again to delete them.
+        """
 
         n_corrupt = n_wrong = n_unkown = n_good = n_temp = 0
         to_remove = list()
@@ -678,7 +977,20 @@ class Project():
                     remove_ds(x)
 
     @staticmethod
-    def parse_log_file(log_file):
+    def parse_log_file(log_file: str):
+        """Subtract some information from the log.txt file.
+
+        Parameters
+        ----------
+        log_file : str
+            Path to log file to parse.
+
+        Returns
+        -------
+        tuple
+            Tuple of defined project folders, periods, bounding-boxes and temporary files
+            mentioned in the log file.
+        """
 
         with open(log_file, "r", encoding='utf8') as f:
             log_string = f.read()
@@ -695,7 +1007,16 @@ class Project():
 
         return project_folders, periods, bbs, temp_files
 
-    def set_passwords(self):
+    def set_passwords(self, set_all:bool=False):
+        """Set passwords for any datasets that are defined in the configuration.
+
+        Parameters
+        ----------
+        set_all : bool, optional
+            Force setting all possible accounts instead of only the onces
+            required for the current configuration, by default `False`.
+
+        """
 
         log.info("> PASSWORDS").add()
 
@@ -710,17 +1031,21 @@ class Project():
             "SENTINEL3": "COPERNICUS_DATA_SPACE",
         }
 
-        all_accounts = list()
-        for v in self.configuration.summary.values():
-            if isinstance(v, set):
-                for source_product in v:
-                    name = Configuration.source_func(source_product)
-                    account = req_accounts.get(name, None)
-                    if not isinstance(account, type(None)):
-                        all_accounts.append(account)
+        if not set_all:
+            all_accounts = list()
+            for v in self.configuration.summary.values():
+                if isinstance(v, set):
+                    for source_product in v:
+                        name = Configuration.source_func(source_product)
+                        account = req_accounts.get(name, None)
+                        if not isinstance(account, type(None)):
+                            all_accounts.append(account)
 
-        x = set(all_accounts)
-        log.info(f"--> Accounts needed for `{'`, `'.join(x)}`.").add()
+            x = set(all_accounts)
+            log.info(f"--> Accounts needed for `{'`, `'.join(x)}`.").add()
+        else:
+            x = set(req_accounts.values())
+            log.info(f"--> Setting accounts for `{'`, `'.join(x)}`.").add()
 
         for account in x:
             _ = pywapor.collect.accounts.get(account)
@@ -728,7 +1053,19 @@ class Project():
         log.sub().info("--> All set!")
         log.sub().info("< PASSWORDS")
 
-    def download_data(self, buffer_timelim = True):
+    def download_data(self, buffer_timelim: bool = True):
+        """Download data specified in the configuration.
+
+        Parameters
+        ----------
+        buffer_timelim : bool, optional
+            Apply a buffer to the requested period to ensure better interpolation, by default `True`.
+
+        Returns
+        -------
+        dict
+            Overview of collected datasets.
+        """
         assert not isinstance(self.configuration, type(None)), "Please load a configuration before continueing."
 
         log.info("> DOWNLOADER").add()
@@ -779,7 +1116,19 @@ class Project():
     
         return self.dss
     
-    def run_pre_se_root(self, forced = False):
+    def run_pre_se_root(self, forced: bool = False):
+        """Run PRE_SE_ROOT if it hasn't run before.
+
+        Parameters
+        ----------
+        forced : bool, optional
+            Force running PRE_SE_ROOT even if it has already run, by default False.
+
+        Returns
+        -------
+        xr.Dataset
+            Dataset with input for the SE_ROOT model.
+        """
         if isinstance(self.se_root_in, type(None)) or forced:
             self.se_root_in = pywapor.pre_se_root.main(self.folder, self.latlim, self.lonlim, self.period, sources = self.configuration.se_root)
         else:
@@ -797,7 +1146,29 @@ class Project():
                                                 )
         return self.se_root_out
     
-    def run_pre_et_look(self, enhancers=[lapse_rate_to_all], bin_length=1, forced = False):
+    def run_pre_et_look(self, enhancers: List[Callable] = [lapse_rate_to_all], bin_length: int | Literal["DEKAD"] = 1, forced = False):
+        """Run PRE_ET_LOOK if it hasn't run before.
+
+        Parameters
+        ----------
+        enhancers : List[Callable], optional
+            List of functions to apply to the dataset before returning it. These should generally 
+            be functions that depend on variables from different sources (otherwise the enhancer
+            can be specified in the `configuration` under the relevant variable). For example,
+            the lapse rate correction requires temperature variables and elevation data, 
+            by default [lapse_rate_to_all].
+        bin_length : int | Literal["DEKAD"], optional
+            Number of days over which to aggregate the output data, should at least 
+            be 1. If specified as `"DEKAD"`, the data will be aggregated over three dekads
+            per month, by default 1.
+        forced : bool, optional
+            Force running PRE_SE_ROOT even if it has already run, by default False.
+
+        Returns
+        -------
+        xr.Dataset
+            Dataset with input for the ET_LOOK model.
+        """
         if isinstance(self.et_look_in, type(None)) or forced:
             self.et_look_in = pywapor.pre_et_look.main(self.folder, self.latlim, self.lonlim, self.period, sources = self.configuration.et_look, enhancers=enhancers, bin_length=bin_length)
         else:
@@ -806,7 +1177,27 @@ class Project():
             log.sub().info("< PRE_ET_LOOK")
         return self.et_look_in
 
-    def run_et_look(self, et_look_version = "v3", export_vars = "default", chunks = {"time_bins": -1, "x": 500, "y": 500}):
+    def run_et_look(self, et_look_version: Literal["v2", "v3"] = "v3", export_vars: Literal["default", "all"] | List[str] = "default", chunks: Dict[str, int] = {"time_bins": -1, "x": 500, "y": 500}):
+        """Run the ET_LOOK model.
+
+        Parameters
+        ----------
+        et_look_version : Literal["v2", "v3"], optional
+            Choose which version of the model to run, by default "v3".
+        export_vars : Literal["default", "all"] | List[str], optional
+            Choose which variables to export, `"default"` exports the most important variables,
+            `"all"` exports all variables that have been calculated. Pass a list with variable names
+            to control precisely which variables get written into the output file, by default "default".
+        chunks : Dict[str, int], optional
+            Choose how the data is chunked during calculation. Check 
+            `https://docs.xarray.dev/en/stable/user-guide/dask.html` for more
+            information, by default {"time_bins": -1, "x": 500, "y": 500}.
+
+        Returns
+        -------
+        xr.Dataset
+            Dataset with output of the ET_LOOK model.
+        """
         self.et_look_out = pywapor.et_look.main(
                                                 self.et_look_in, 
                                                 et_look_version = et_look_version, 
@@ -842,7 +1233,7 @@ if __name__ == "__main__":
 
     # project.validate_project_folder()
 
-    # project.load_configuration(name = "WaPOR3_level_2")
+    project.load_configuration(name = "WaPOR3_level_2")
 
     summary = {
         # Define which products to use.
@@ -867,12 +1258,12 @@ if __name__ == "__main__":
         #     'VIIRSL1.VNP02IMG': {'a': 0.85, 'lmbdas': 1000.0, 'method': 'whittaker'}},
         }
     
-    project.load_configuration(summary = summary)
+    # project.load_configuration(summary = summary)
 
 
 
-    project.set_passwords()
-    dss = project.download_data()
+    # project.set_passwords()
+    # dss = project.download_data()
     
     # se_root_in = project.run_pre_se_root()
     # se_root = project.run_se_root()
