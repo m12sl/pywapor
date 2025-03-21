@@ -802,6 +802,29 @@ class Project():
                 log.warning("> Please update pywapor.")
         log.sub()
 
+    @staticmethod
+    def set_remove_temp_files(remove: bool = True):
+        """Set whether or not to `remove` temporary files created during the different
+        processes.
+
+        Parameters
+        ----------
+        remove : bool, optional
+            Set to False to NOT remove temporary files, by default True.
+        """
+        if remove:
+            os.environ["PYWAPOR_REMOVE_TEMP_FILES"] = "YES"
+        else:
+            os.environ["PYWAPOR_REMOVE_TEMP_FILES"] = "NO"
+
+        rmve = {"NO": False, "YES": True}.get(
+            os.environ.get("PYWAPOR_REMOVE_TEMP_FILES", "YES"), True
+        )
+        if rmve:
+            log.info("--> Going forward, temporary files will be removed.")
+        else:
+            log.info("--> Going forward, temporary fiels will NOT be removed.")
+
     def __repr__(self):
         project_str = f"""--> Project Folder:
         > {self.folder}
