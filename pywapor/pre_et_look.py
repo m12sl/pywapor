@@ -103,7 +103,7 @@ def main(folder, latlim, lonlim, timelim, sources = "level_2_v3", bin_length = 1
     sources : "level_1" | "level_2" | "level_2_v3" | dict, optional
         Configuration for each variable and source, by default `"level_1"`.
     bin_length : int | "DEKAD", optional
-        Composite length, by_default `"DEKAD"`.
+        Composite length, by_default 1.
     enhancers : list, optional
         Functions to apply to the xr.Dataset before creating the final
         output, by default `[lapse_rate]`.
