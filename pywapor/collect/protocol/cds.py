@@ -246,7 +246,8 @@ def download(folder, product_name, latlim, lonlim, timelim, variables, post_proc
         dss.append(ds)
 
     # Merge everything together.
-    ds = xr.merge(dss)
+    print("Merging datasets with `compat = override`.")
+    ds = xr.merge(dss, compat = "override")
 
     # Clean up the dataset.
     relevant_coords = {
