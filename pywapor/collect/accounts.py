@@ -1,10 +1,12 @@
 import os
 import json
-import pywapor
 import getpass
 import sys
 import requests
 import cdsapi
+from typing import Tuple
+
+import pywapor
 from pywapor.general.logger import log, adjust_logger
 from cryptography.fernet import Fernet
 from pywapor.collect.product.LANDSAT import espa_api
@@ -138,7 +140,8 @@ def setup(account):
 
     return
 
-def get(account):
+
+def get(account: str) -> Tuple[str, str]:
     """Loads a required username/password.
 
     Parameters
@@ -147,6 +150,35 @@ def get(account):
         Which un/pw combination to load.
     """
 
+    project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
+    keys_file = os.getenv("PYWAPOR_KEYS_FILE")
+
+    if project_id:  # cloud 
+        username = get_secret_from_cloud(project_id, f"PYWAPOR_{account}_USERNAME")
+        password = get_secret_from_cloud(project_id, f"PYWAPOR_{account}_PASSWORD")
+        return (username, password)
+    elif keys_file:  # local dev only
+        with open(keys_file) as fin:
+            storage = json.load(fin)
+            if account in storage:
+                return tuple(storage[account])
+    else:  # old way
+        get_from_encrypted_file(account)
+
+
+def get_secret_from_cloud(project_id: str, name: str) -> str:
+    from google.cloud import secretmanager
+    client = secretmanager.SecretManagerServiceClient()
+    try:
+        secret_name = f"projects/{project_id}/secrets/{name}/versions/latest"
+        response = client.access_secret_version(request={"name": secret_name})
+        return response.payload.data.decode("UTF-8")
+    # TODO: 
+    except Exception as e:
+        raise e
+
+
+def get_from_encrypted_file(account: str) -> Tuple[str, str]:
     folder = os.path.dirname(os.path.realpath(pywapor.__path__[0]))
     filename = "secret.txt"
     key_file = os.path.join(folder, filename)

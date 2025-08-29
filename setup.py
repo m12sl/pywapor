@@ -38,6 +38,7 @@ setup(
         'scikit-learn',
         'numba',
         'xmltodict',
+        'google-cloud-secret-manager>=2.24.0',
     ],
     classifiers=[
         "Operating System :: OS Independent",

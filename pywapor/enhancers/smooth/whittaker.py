@@ -8,7 +8,7 @@ def xr_dist_to_finite(y, dim = "time"):
 
     from pywapor.enhancers.smooth.core import dist_to_finite
 
-    if not dim in y.dims:
+    if dim not in y.dims:
         raise ValueError
 
     out = xr.apply_ufunc(
