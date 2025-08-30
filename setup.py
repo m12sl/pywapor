@@ -14,7 +14,7 @@ setup(
         # 'libgdal-netcdf',
         # 'libgdal-jp2openjpeg',
         'netcdf4',
-        'gdal>=3,<4.0',
+        'gdal>=3.6,<3.7',
         'xarray',
         'numpy<2',
         'pandas<3',
