@@ -8,6 +8,7 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 import warnings
 import sys
 
+
 class MyCoolFormatter(logging.Formatter):
     """
     See https://jupyterbook.org/en/stable/content/code-outputs.html#ansi-outputs
@@ -29,7 +30,7 @@ __handler__.setLevel("INFO")
 log_settings.addHandler(__handler__)
 log = IndentedLoggerAdapter(log_settings)
 
-def adjust_logger(log_write, folder, log_level, testing = False):
+def adjust_logger(log_write, folder, log_level, testing=False):
     """Function to adjust the default logging settings that get initiated by
     importing this module.
 
@@ -47,16 +48,13 @@ def adjust_logger(log_write, folder, log_level, testing = False):
         for handler in handlers_to_remove:
             log_settings.removeHandler(handler)
 
-    if log_write and not any([isinstance(x, logging.FileHandler) for x in log_settings.handlers]):
-        if not os.path.isdir(folder):
-            os.makedirs(folder)
-        handler = logging.FileHandler(filename = os.path.join(folder, "log.txt"), encoding="utf-8")
-        formatter = logging.Formatter('{asctime} {levelname:>9s}: {message}', style='{')
-        handler.setFormatter(formatter)
-        handler.setLevel("DEBUG")
-        log_settings.addHandler(handler)
-        logging_redirect_tqdm(loggers = log_settings.handlers)
-        log_settings.propagate = False
+    handler = logging.StreamHandler(stream=sys.stderr)
+    formatter = logging.Formatter('{asctime} {levelname:>9s}: {message}', style='{')
+    handler.setFormatter(formatter)
+    handler.setLevel("DEBUG")
+    log_settings.addHandler(handler)
+    logging_redirect_tqdm(loggers = log_settings.handlers)
+    log_settings.propagate = False
 
     if testing:
         log_settings.propagate = True
