@@ -12,6 +12,7 @@ from requests.exceptions import HTTPError
 import time
 import socket
 import requests
+from pywapor.general.utils import get_filesystem
 from pywapor.general.logger import log
 from cachetools import cached, TTLCache
 import ssl
@@ -223,14 +224,14 @@ def download_urls(urls, folder, session = None, fps = None, parallel = 0,
 
 
 def _download_url(url, fp, session = None, waitbar = True, headers = None):
-
-    if os.path.isfile(fp):
+    fs = get_filesystem(fp)
+    if fs.exists(fp):
         log.add().info(f"--> Reusing existing `{fp}` file.").sub()
         return fp
 
     folder, fn = os.path.split(fp)
-    if not os.path.exists(folder):
-        os.makedirs(folder)
+    if not fs.exists(folder):
+        fs.makedirs(folder)
 
     ext = os.path.splitext(fp)[-1]
     temp_fp = fp.replace(ext, "_temp")
@@ -251,13 +252,13 @@ def _download_url(url, fp, session = None, waitbar = True, headers = None):
         wb = tqdm.tqdm(unit='Bytes', unit_scale=True, leave = False, 
                         total = tot_size, desc = fn)
 
-    with open(temp_fp, 'wb') as z:
+    with fs.open(temp_fp, 'wb') as z:
         for data in file_object.iter_content(chunk_size=1024):
             size = z.write(data)
             if waitbar:
                 wb.update(size)
 
-    os.rename(temp_fp, fp)
+    fs.rename(temp_fp, fp)
 
     return fp
 

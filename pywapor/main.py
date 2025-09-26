@@ -1,4 +1,5 @@
 import glob
+import fsspec
 import importlib
 import json
 import os
@@ -15,6 +16,7 @@ from osgeo import gdal
 import pywapor
 from pywapor.collect.downloader import collect_sources
 from pywapor.enhancers.temperature import lapse_rate_to_all
+from pywapor.general import get_filesystem
 from pywapor.general.compositer import time_bins
 from pywapor.general.logger import adjust_logger, log
 from pywapor.general.processing_functions import (
@@ -863,28 +865,39 @@ class Project:
         os.environ["pyWaPOR_bb"] = str(self.bb)
         os.environ["pyWaPOR_period"] = str(self.period)
 
+        fs = get_filesystem(project_folder)
+
         warnings.filterwarnings("ignore", message="invalid value encountered in power")
+        # TODO (alex): update file logger
         adjust_logger(True, self.folder, "INFO")
 
         self.se_root_in: xr.Dataset | str | None = None
         """Dataset with input for the SE_ROOT model."""
-        if os.path.isfile(os.path.join(self.folder, "se_root_in.nc")):
-            self.se_root_in = open_ds(os.path.join(self.folder, "se_root_in.nc"))
+
+        input_path = fs.sep.join([self.folder, "se_root_in.nc"])
+        if fs.exists(input_path):
+            self.se_root_in = open_ds(input_path)
 
         self.se_root_out: xr.Dataset | str | None = None
         """Dataset with output of the SE_ROOT model."""
-        se_root_outs = glob.glob(os.path.join(self.folder, "se_root_out*.nc"))
+
+        output_path = fs.sep.join([self.folder, "se_root_out*.nc"])
+        se_root_outs = fs.glob(output_path)
         if se_root_outs:
             self.se_root_out = open_ds(max(se_root_outs, key=os.path.getmtime))
 
         self.et_look_in: xr.Dataset | str | None = None
         """Dataset with input for the ET_LOOK model."""
-        if os.path.isfile(os.path.join(self.folder, "et_look_in.nc")):
-            self.et_look_in = open_ds(os.path.join(self.folder, "et_look_in.nc"))
+        
+        input_path = fs.sep.join([self.folder, "et_look_in.nc"])
+        if fs.exists(input_path):
+            self.et_look_in = open_ds(input_path)
 
         self.et_look_out: xr.Dataset | str | None = None
         """Dataset with output of the ET_LOOK model."""
-        et_look_outs = glob.glob(os.path.join(self.folder, "et_look_out*.nc"))
+
+        output_path = fs.sep.join([self.folder, "et_look_out*.nc"])
+        et_look_outs = fs.glob(output_path)
         if et_look_outs:
             self.et_look_out = open_ds(max(et_look_outs, key=os.path.getmtime))
 
@@ -1030,6 +1043,7 @@ class Project:
         return self.configuration
 
     def validate_project_folder(self):
+        # TODO(alex): move to fsspec
         """Perform several diagnostic tests on the project folder. Mostly to
         detect whether or not different projects have been mixed up in the same
         folder.

@@ -120,6 +120,7 @@ def remove_ds(ds):
             ... # file is corrupt/incomplete
 
         try:
+            # TODO (alex): move to fsspec
             os.remove(fp)
         except PermissionError:
             log.info(f"--> Unable to delete temporary file `{fp}`.")

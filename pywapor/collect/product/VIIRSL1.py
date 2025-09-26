@@ -19,6 +19,7 @@ import xarray as xr
 from joblib import Memory, Parallel, delayed
 from osgeo import gdal
 
+from pywapor.general import get_filesystem
 from pywapor.collect import accounts
 from pywapor.collect.protocol.crawler import download_url, download_urls
 from pywapor.collect.protocol.opendap import make_opendap_url
@@ -99,9 +100,11 @@ def download_arrays(
     dtype_is_8bit=False,
 ):
     fn = os.path.splitext(os.path.split(path)[-1])[0]
-    path_local = os.path.join(folder, fn + path_appendix)
 
-    if os.path.isfile(path_local):
+    fs = get_filesystem(folder)
+    path_local = fs.sep.join([folder, fn + path_appendix])
+
+    if fs.exists(path_local):
         remove_ds(path_local)
 
     # check if file is local or vsicurl or vsis3
@@ -423,21 +426,17 @@ def download(
     xr.Dataset
         Downloaded data.
     """
-    folder = os.path.join(folder, "VIIRSL1")
+    fs = get_filesystem(folder)
 
-    # NOTE paths on windows have a max length, this extends the max length, see
-    # here for more info https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation?tabs=registry
-    if os.name == "nt":
-        cachedir = "\\\\?\\" + os.path.join(os.path.abspath(folder), "cache")
-    else:
-        cachedir = os.path.join(folder, "cache")
+    folder = fs.sep.join([folder, "VIIRSL1"])
+    cachedir = fs.sep.join([folder, "cache"])
 
-    if not os.path.exists(folder):
-        os.makedirs(folder)
+    if not fs.exists(folder):
+        fs.makedirs(folder)
 
-    fn = os.path.join(folder, f"{product_name}.nc")
+    fn = fs.sep.join([folder, f"{product_name}.nc"])
     req_vars_orig = copy.deepcopy(req_vars)
-    if os.path.isfile(fn):
+    if fs.exists(fn):
         existing_ds = open_ds(fn)
         req_vars_new = list(set(req_vars).difference(set(existing_ds.data_vars)))
         if len(req_vars_new) > 0:
@@ -468,6 +467,7 @@ def download(
         }
 
     bb, nx, ny = create_grid(latlim, lonlim, dx_dy=(0.0033, 0.0033))
+    # TODO (alex): move create_stac_summary to fsspec
     filtered_summary = create_stac_summary(bb, timelim, cachedir=cachedir)
 
     log.info(f"--> Collecting {len(filtered_summary)} VIIRS scenes.")
@@ -481,8 +481,8 @@ def download(
 
     for i, (date, (nc02, nc03, nc_cloud)) in enumerate(copy.deepcopy(all_urls).items()):
         date_str = str(date).replace(" ", "_").replace(":", "_")
-        proj_fn = os.path.join(folder, f"bt_{date_str}_projected.nc")
-        if os.path.isfile(proj_fn):
+        proj_fn = fs.sep.join([folder, f"bt_{date_str}_projected.nc"])
+        if fs.exists(proj_fn):
             all_proj_files.append(proj_fn)
             _ = all_urls.pop(date)
 
@@ -500,8 +500,8 @@ def download(
 
     for i, (date, (nc02, nc03, nc_cloud)) in enumerate(all_urls.items()):
         date_str = str(date).replace(" ", "_").replace(":", "_")
-        unproj_fn = os.path.join(folder, f"bt_{date_str}_unprojected.nc")
-        proj_fn = os.path.join(folder, f"bt_{date_str}_projected.nc")
+        unproj_fn = fs.sep.join([folder, f"bt_{date_str}_unprojected.nc"])
+        proj_fn = fs.sep.join([folder, f"bt_{date_str}_projected.nc"])
 
         log.info(
             f"--> ({i + 1}/{len(all_urls)}) Processing '{os.path.split(nc02)[-1]}'."
@@ -621,8 +621,8 @@ def download(
             urls = [nc02_url, nc03_url, ncqa_url]
             groups = ["observation_data", "geolocation_data", "geophysical_data"]
             for group, url in zip(groups, urls.copy()):
-                fp_ = os.path.join(folder, os.path.split(url)[-1])
-                if os.path.isfile(fp_):
+                fp_ = fs.sep.join([folder, os.path.split(url)[-1]])
+                if fs.exists(fp_):
                     corrupt = is_corrupt_or_empty(fp_, group=group)
                     if corrupt:
                         remove_ds(fp_)
@@ -634,9 +634,9 @@ def download(
             headers = {"Authorization": "Bearer " + token}
             n_jobs = min(len(urls), multiprocessing.cpu_count())
             _ = download_urls(urls, folder, headers=headers, parallel=n_jobs)
-            nc02_file_ = os.path.join(folder, os.path.split(nc02_url)[-1])
-            nc03_file = os.path.join(folder, os.path.split(nc03_url)[-1])
-            ncqa_file_ = os.path.join(folder, os.path.split(ncqa_url)[-1])
+            nc02_file_ = fs.sep.join([folder, os.path.split(nc02_url)[-1]])
+            nc03_file = fs.sep.join([folder, os.path.split(nc03_url)[-1]])
+            ncqa_file_ = fs.sep.join([folder, os.path.split(ncqa_url)[-1]])
             # NOTE The data has already been downloaded, just running this to align the files
             # with the `method = s3_bucket` branch.
             lats_file = download_arrays(
@@ -712,7 +712,7 @@ def download(
             }
             url = make_opendap_url(base_url03, order)
             log.info(f"--> Downloading `{nc03_parts[-1]}`.")
-            nc03_file = download_url(url, os.path.join(folder, nc03_parts[-1]))
+            nc03_file = download_url(url, fs.sep.join([folder, nc03_parts[-1]]))
 
             # Determine AOI inside scene.
             log.info("--> Determining indices of AOI inside scene.").add()
@@ -761,7 +761,7 @@ def download(
             )
             lats_file_ds = save_ds(
                 geoloc_ds[["latitude"]],
-                os.path.join(folder, nc03_parts[-1].replace(".nc", "_lat.nc")),
+                fs.sep.join([folder, nc03_parts[-1].replace(".nc", "_lat.nc")]),
                 label="Saving latitudes.",
             )
             lats_file = lats_file_ds.encoding["source"]
@@ -769,7 +769,7 @@ def download(
 
             lons_file_ds = save_ds(
                 geoloc_ds[["longitude"]],
-                os.path.join(folder, nc03_parts[-1].replace(".nc", "_lon.nc")),
+                fs.sep.join([folder, nc03_parts[-1].replace(".nc", "_lon.nc")]),
                 label="Saving longitudes.",
             )
             lons_file = lons_file_ds.encoding["source"]
@@ -791,7 +791,7 @@ def download(
             }
             url = make_opendap_url(base_url02, order)
             nc02_file = download_url(
-                url, os.path.join(folder, nc02_parts[-1].replace(".nc", "_data_lut.nc"))
+                url, fs.sep.join([folder, nc02_parts[-1].replace(".nc", "_data_lut.nc")])
             )
 
             # Download cloud mask.
@@ -802,7 +802,7 @@ def download(
             url = make_opendap_url(base_cloud, order)
             ncqa_file = download_url(
                 url,
-                os.path.join(folder, nc_cloud_parts[-1].replace(".nc", "_cloud.nc")),
+                fs.sep.join([folder, nc_cloud_parts[-1].replace(".nc", "_cloud.nc")]),
             )
 
             lut_file = None
@@ -811,7 +811,7 @@ def download(
         else:
             raise ValueError
 
-        if not os.path.isfile(unproj_fn):
+        if not fs.exists(unproj_fn):
             combine_unprojected_data(nc02_file, ncqa_file, lut_file, unproj_fn)
 
         warp_kwargs = {"outputBounds": bb, "width": nx, "height": ny}

@@ -1,3 +1,4 @@
+from pywapor.general.utils import get_filesystem
 from pywapor.general.logger import log, adjust_logger
 from pywapor.general.processing_functions import adjust_timelim_dtype, open_ds
 import types
@@ -48,6 +49,7 @@ def collect_sources(folder, sources, latlim, lonlim, timelim, landsat_order_only
     """
 
     adjust_logger(True, folder, "INFO")
+    fs = get_filesystem(folder)
     timelim = adjust_timelim_dtype(timelim)
     
     reversed_sources, reversed_enhancers = reverse_sources(sources)
@@ -75,7 +77,7 @@ def collect_sources(folder, sources, latlim, lonlim, timelim, landsat_order_only
             if isinstance(source, str):
                 if "FILE:" in source:
                     search_path = source.replace("FILE:", "").format(folder = folder, sep = os.sep)
-                    fhs = glob.glob(search_path)
+                    fhs = fs.glob(search_path)
                     nfhs = len(fhs)
                     if nfhs == 1:
                         fp = fhs[0]
