@@ -17,6 +17,7 @@ import requests
 import tqdm
 import xarray as xr
 from joblib import Memory, Parallel, delayed
+import json
 from osgeo import gdal
 
 from pywapor.general import get_filesystem
@@ -148,51 +149,58 @@ def search_stac(params, cachedir=None, extra_filters={"day_night_flag": "DAY"}):
     memory = Memory(cachedir, verbose=0)
 
     @memory.cache()
-    def _post_search(search, params_):
-        query = requests.post(search, json=params_)
+    def _post_search(search, params_json):
+        query = requests.post(search, json=json.loads(params_json) if params_json else None)
         query.raise_for_status()
         out = query.json()
         return out
+    
+    @memory.cache()
+    def _get_search(url):
+        query = requests.get(url)
+        query.raise_for_status()
+        return query.json()
 
     @memory.cache()
-    def _check(ftr, extra_filters):
-        links = [x for x in ftr.get("links", []) if x["rel"] == "via"]
-        link = links[0].get("href", None) if len(links) > 0 else None
-        metadata_resp = requests.get(link)
+    def _check(link_url, extra_filters_json):
+        extra_filters_ = json.loads(extra_filters_json)
+        metadata_resp = requests.get(link_url)
         metadata_resp.raise_for_status()
         metadata = metadata_resp.json()
-        check = [metadata[k] == v for k, v in extra_filters.items()]
-        return all(check)
+        return all(metadata.get(k) == v for k, v in extra_filters_.items())
 
     search = "https://cmr.earthdata.nasa.gov/stac/LAADS/search"
-    all_scenes = list()
-    links = [{"href": params, "rel": "next"}]
-    while "next" in [x.get("rel", None) for x in links]:
-        params_ = [x.get("href") for x in links if x.get("rel") == "next"][0]
-        if isinstance(params_, dict):
-            out = _post_search(search, params_)
-        elif isinstance(params_, str):
-            out = _post_search(params_, params_={})
+    all_scenes = []
+
+    # first request is POST, all next_urls are GETs
+    out = _post_search(search, json.dumps(params))
+    all_scenes += out["features"]
+
+    while True:
+        next_links = [x for x in out.get("links", []) if x.get("rel") == "next"]
+        if not next_links:
+            break
+
+        if len(next_links) > 1:
+            log.warning(f"Multiple 'next' links found: {len(next_links)}")
+
+        next_url = next_links[0]["href"]
+        out = _get_search(next_url)
         all_scenes += out["features"]
-        links = out["links"]
-        if "datetime" not in params.keys():
-            return all_scenes
+
     log.info(f"--> Found {len(all_scenes)} `{params['collections'][0]}` scenes.")
 
     if len(extra_filters) > 0:
-        log.add().info(
-            f"--> Filtering `{params['collections'][0]}` scenes with `{extra_filters}`."
-        )
-        final = [
-            x
-            for x in tqdm.tqdm(
-                all_scenes, position=0, bar_format="{l_bar}{bar}|", delay=5, leave=False
-            )
-            if _check(x, extra_filters)
-        ]
-        log.info(
-            f"--> Found {len(final)} relevant `{params['collections'][0]}` scenes."
-        ).sub()
+        log.add().info(f"--> Filtering scenes with `{extra_filters}`.")
+        extra_filters_json = json.dumps(extra_filters, sort_keys=True)
+
+        final = []
+        for scene in tqdm.tqdm(all_scenes, position=0, bar_format="{l_bar}{bar}|", delay=5, leave=False):
+            links = [x for x in scene.get("links", []) if x["rel"] == "via"]
+            if links and _check(links[0]["href"], extra_filters_json):
+                final.append(scene)
+        
+        log.info(f"--> Found {len(final)} relevant scenes.").sub()
     else:
         final = all_scenes
 
