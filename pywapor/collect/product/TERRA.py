@@ -402,6 +402,7 @@ def download(
 
 
 def search_stac(params, cachedir):
+    # TODO: fix pagination and cache here
     memory = Memory(cachedir, verbose=0)
 
     search = "https://services.terrascope.be/stac/search"

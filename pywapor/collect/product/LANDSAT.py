@@ -850,6 +850,7 @@ def espa_api(endpoint, verb="get", body=None, uauth=None):
 
 
 def search_stac(latlim, lonlim, timelim, product_name, extra_search_kwargs, limit=1000):
+    # TODO: add pagination here, because now it retrieves only limit scenes.
     bb = [lonlim[0], latlim[0], lonlim[1], latlim[1]]
 
     search_kwargs = extra_search_kwargs
