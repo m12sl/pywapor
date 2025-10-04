@@ -123,21 +123,23 @@ def download(
         f"ContentDate/Start lt {ed}",
     ]
 
-    query = base_url + "?$filter=" + " and ".join(filters)
-
-    results = {"@odata.nextLink": query}
+    query = base_url + "?$filter=" + " and ".join(filters) + "&$orderby=ContentDate/Start"
 
     @memory.cache()
-    def query_results(results):
+    def query_results(initial_query):
         scenes = list()
-        while "@odata.nextLink" in results.keys():
-            out = requests.get(results["@odata.nextLink"])
+        next_query = initial_query
+
+        while next_query:
+            out = requests.get(next_query, timeout=30)
             out.raise_for_status()
             results = out.json()
             scenes += results["value"]
+            next_query = results.get("@odata.nextLink")
+
         return scenes
 
-    scenes = query_results(results)
+    scenes = query_results(query)
 
     # Drop identical scenes.
     scene_names = {x["Name"]: i for i, x in enumerate(scenes)}
