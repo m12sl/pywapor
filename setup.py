@@ -15,7 +15,7 @@ setup(
         # 'libgdal-jp2openjpeg',
         'netcdf4==1.7.*',
         'gdal>=3,<4.0',
-        'xarray=2025.3.*',
+        'xarray==2025.3.*',
         'numpy==1.26.*',
         'pandas==2.2.*',
         'requests==2.32.*',
