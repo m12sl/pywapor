@@ -14,7 +14,7 @@ from importlib.metadata import version
 from pywapor.enhancers.apply_enhancers import apply_enhancers
 from pywapor.general.logger import log
 import shutil
-from pywapor.general.processing_functions import save_ds, remove_ds
+from pywapor.general.processing_functions import save_ds, remove_ds, blockwise_merge, check_nans
 
 def create_time_settings(timelim):
     """Reformats the time limits so that they can be ingested by CDS.
@@ -220,6 +220,9 @@ def download(folder, product_name, latlim, lonlim, timelim, variables, post_proc
         # Open downloaded data
         ds = xr.open_mfdataset(fps)
 
+        if check_nans(ds):
+            print(f"Warning: Dataset contains only NaNs for some variables. Settings: {setting}")
+
         das = list()
 
         time_offset = {"sis-agrometeorological-indicators": 12,
@@ -239,6 +242,8 @@ def download(folder, product_name, latlim, lonlim, timelim, variables, post_proc
             das.append(da)
 
         ds = xr.concat(das, dim="time").to_dataset().sortby("time")
+        if check_nans(ds):
+            print(f"Warning: Concated dataset contains only NaNs for some variables. Settings: {setting}")
 
         renames = {x: variables[setting["variable"]][1] for x in ds.data_vars}
         ds = ds.rename_vars(renames)
@@ -246,8 +251,7 @@ def download(folder, product_name, latlim, lonlim, timelim, variables, post_proc
         dss.append(ds)
 
     # Merge everything together.
-    print("Merging datasets with `compat = override`.")
-    ds = xr.merge(dss, compat = "override")
+    ds = blockwise_merge(dss, concat_dim="time")
 
     # Clean up the dataset.
     relevant_coords = {
@@ -275,6 +279,8 @@ def download(folder, product_name, latlim, lonlim, timelim, variables, post_proc
 
     # Save the netcdf.
     ds = save_ds(ds, fn_final, label = "Merging files.")
+    if check_nans(ds):
+        print("Warning: saved CDS dataset contains only NaNs for some variables.")
 
     for x in to_remove:
         remove_ds(x)

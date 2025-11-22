@@ -13,6 +13,18 @@ import pandas as pd
 from pywapor.general.performance import performance_check
 import re
 
+
+def blockwise_merge(dss: list[xr.Dataset], concat_dim: str) -> xr.Dataset:
+    vars = set()
+    for ds in dss:
+        vars.update(set(ds.data_vars))
+    tmp = []
+    for var in vars: 
+        ds = xr.concat([ds for ds in dss if var in ds.data_vars], dim=concat_dim).sortby(concat_dim)
+        tmp.append(ds)
+    ds = xr.merge(tmp, compat="no_conflicts")
+    return ds
+
 def func_from_string(string):
     parts = string.split(".")
     mod_str = parts.pop(0)
@@ -447,6 +459,26 @@ def unpack(file, folder):
     shutil.unpack_archive(os.path.join(folder, file), folder)
     folder = [x for x in glob.glob(os.path.join(folder, fn + "*")) if os.path.isdir(x)][0]
     return folder
+
+def check_nans(ds: xr.Dataset) -> bool:
+    """Check if a dataset contains only NaN values.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset to check.
+
+    Returns
+    -------
+    bool
+        True if the dataset contains only NaN values, False otherwise.
+    """
+    nans = True
+    for var in ds.data_vars:    
+        if not ds[var].isnull().all().values:
+            nans = False
+            break
+    return nans
 
 def transform_bb(src_crs, dst_crs, bb):
     """Transforms coordinates from one CRS to another.
